@@ -65,10 +65,6 @@ pipeline {
       }
     }
     stage('Deploy') {
-      when {
-        branch 'master'
-        beforeAgent true
-      }
       parallel {
         stage('Deploy to remote') {
           when {
@@ -95,11 +91,25 @@ pipeline {
           }
         }
         stage('Deploy to master') {
+          when {
+            branch 'master'
+          }
           agent {
             label 'master'
           }
           steps {
             sh 'sudo cp -f html/* /usr/share/nginx/html'
+          }
+        }
+        stage('Deploy to dev') {
+          when {
+            expression { BRANCH_NAME ==~ /dev.*/ }
+          }
+          agent {
+            label 'master'
+          }
+          steps {
+            sh 'sudo cp -f html/* /usr/share/nginx/html/dev'
           }
         }
       }
