@@ -5,6 +5,10 @@ pipeline {
     stage('Deploy') {
       parallel {
         stage('Deploy to remote') {
+          when {
+            beforeAgent true
+            environment(name: 'DEPLOY_TO_REMOTE', value: 'true')
+          }
           environment {
             LAZY_KEY = credentials('HelloJenkinsLazyKey')
             REMOTE_DNS = credentials('HelloJenkinsProdDns')
