@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  parameters {
+      choice(name: 'PILL', choices: ['Blue pill', 'Red pill', 'Punch Morpheus'], description: 'Choose wisely...')
+  }
+
   stages {
     stage('Build') {
       steps {
@@ -64,7 +68,7 @@ pipeline {
         sleep 5
       }
     }
-    stage('Deploy to staging') {
+    stage('Deploy to Staging') {
       parallel {
         stage('master') {
           when {
@@ -90,7 +94,7 @@ pipeline {
         }
       }
     }
-    stage('Deploy to production') {
+    stage('Deploy to Production') {
       input {
         message 'Finish deployment to production servers?'
         ok 'Deploy'
@@ -116,6 +120,23 @@ pipeline {
           sshPut(remote: remote, from: 'html/', into: '.', failOnError: false)
           sshCommand(remote: remote, sudo: true, command: 'cp -f html/* /usr/share/nginx/html', failOnError: false)
         }
+      }
+    }
+    stage('Determine Wisdom') {
+      steps {
+        script {
+          if (params.PILL != 'Red pill') {
+            unstable 'Did not take the red pill!'
+          }
+        }
+      }
+    }
+    stage('Face Reality') {
+      when {
+        not { equals(expected: 'UNSTABLE', actual: currentBuild.result) }
+      }
+      steps {
+        echo 'I know Kung Fu!'
       }
     }
   }
