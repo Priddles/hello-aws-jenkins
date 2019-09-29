@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  parameters {
+      choice(name: 'PILL', choices: ['Blue pill', 'Red pill', 'Punch Morpheus'], description: 'Choose wisely...')
+  }
+
   stages {
     stage('Build') {
       steps {
@@ -64,33 +68,9 @@ pipeline {
         sleep 5
       }
     }
-    stage('Deploy') {
+    stage('Deploy to Staging') {
       parallel {
-        stage('Deploy to remote') {
-          when {
-            beforeAgent true
-            environment(name: 'DEPLOY_TO_REMOTE', value: 'true')
-          }
-          environment {
-            LAZY_KEY = credentials('HelloJenkinsLazyKey')
-            REMOTE_DNS = credentials('HelloJenkinsProdDns')
-          }
-
-          steps {
-            script {
-              def remote = [:]
-              remote.name = REMOTE_DNS
-              remote.host = REMOTE_DNS
-              remote.user = LAZY_KEY_USR
-              remote.identityFile = LAZY_KEY
-              remote.allowAnyHosts = true
-
-              sshPut(remote: remote, from: 'html/', into: '.', failOnError: false)
-              sshCommand(remote: remote, sudo: true, command: 'cp -f html/* /usr/share/nginx/html', failOnError: false)
-            }
-          }
-        }
-        stage('Deploy to master') {
+        stage('master') {
           when {
             branch 'master'
           }
@@ -101,7 +81,7 @@ pipeline {
             sh 'sudo cp -f html/* /usr/share/nginx/html'
           }
         }
-        stage('Deploy to dev') {
+        stage('dev') {
           when {
             expression { BRANCH_NAME ==~ /dev.*/ }
           }
@@ -112,6 +92,51 @@ pipeline {
             sh 'sudo cp -f html/* /usr/share/nginx/html/dev'
           }
         }
+      }
+    }
+    stage('Deploy to Production') {
+      input {
+        message 'Finish deployment to production servers?'
+        ok 'Deploy'
+      }
+      when {
+        beforeAgent true
+        environment(name: 'DEPLOY_TO_REMOTE', value: 'true')
+      }
+      environment {
+        LAZY_KEY = credentials('HelloJenkinsLazyKey')
+        REMOTE_DNS = credentials('HelloJenkinsProdDns')
+      }
+
+      steps {
+        script {
+          def remote = [:]
+          remote.name = REMOTE_DNS
+          remote.host = REMOTE_DNS
+          remote.user = LAZY_KEY_USR
+          remote.identityFile = LAZY_KEY
+          remote.allowAnyHosts = true
+
+          sshPut(remote: remote, from: 'html/', into: '.', failOnError: false)
+          sshCommand(remote: remote, sudo: true, command: 'cp -f html/* /usr/share/nginx/html', failOnError: false)
+        }
+      }
+    }
+    stage('Determine Wisdom') {
+      steps {
+        script {
+          if (params.PILL != 'Red pill') {
+            unstable 'Did not take the red pill!'
+          }
+        }
+      }
+    }
+    stage('Face Reality') {
+      when {
+        not { equals(expected: 'UNSTABLE', actual: currentBuild.result) }
+      }
+      steps {
+        echo 'I know Kung Fu!'
       }
     }
   }
